@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 from web3 import Web3
 from time import sleep, time
 import json
@@ -39,7 +41,7 @@ logging.info("******************************************************************
 //PRELOAD
 """""""""""""""""""""""""""
 print(timestamp(), "Preloading Data")
-f = open('./settings.json', )
+f = open('./setting.json', )
 settings = json.load(f)[0]
 f.close()
 
@@ -94,7 +96,7 @@ if settings['EXCHANGE'].lower() == 'pancakeswap':
         my_provider = settings['CUSTOMNODE']
         print(timestamp(), 'Using custom mode.')
     else:
-        my_provider = "https://bsc-dataseed4.defibit.io"
+        my_provider = "wss://bsc-ws-node.nariox.org"
 
     if not my_provider:
         print(timestamp(), 'Custom node empty. Exiting')
@@ -150,7 +152,7 @@ elif settings['EXCHANGE'].lower() == 'apeswap':
         my_provider = settings['CUSTOMNODE']
         print(timestamp(), 'Using custom mode.')
     else:
-        my_provider = "https://bsc-dataseed4.defibit.io"
+        my_provider = "wss://bsc-ws-node.nariox.org"
     
     if not my_provider:
         print(timestamp(), 'Custom node empty. Exiting')
@@ -424,34 +426,13 @@ def load_wallet_settings(pwd):
     global settings
     global settings_changed
 
-    # Check for limit wallet information
-    if " " in settings['LIMITWALLETADDRESS'] or settings['LIMITWALLETADDRESS'] == "":
-        settings_changed = True
-        settings['LIMITWALLETADDRESS'] = input("Please provide the wallet address where you have your LIMIT: ")
-    
-    # Check for limit wallet private key
-    if " " in settings['LIMITWALLETPRIVATEKEY'] or settings['LIMITWALLETPRIVATEKEY'] == "":
-        settings_changed = True
-        settings['LIMITWALLETPRIVATEKEY'] = input("Please provide the private key for the wallet where you have your LIMIT: ")
-    
-    # If the limit wallet private key is already set and encrypted, decrypt it
-    elif settings['LIMITWALLETPRIVATEKEY'].startswith('aes:'):
-        print (timestamp(), "Decrypting limit wallet private key.")
-        settings['LIMITWALLETPRIVATEKEY'] = settings['LIMITWALLETPRIVATEKEY'].replace('aes:', "", 1)
-        settings['LIMITWALLETPRIVATEKEY'] = cryptocode.decrypt(settings['LIMITWALLETPRIVATEKEY'], pwd)
-
-        if settings['LIMITWALLETPRIVATEKEY'] == False:
-            print("ERROR: Your private key decryption password is incorrect")
-            exit(1)
-
-
     # Check for trading wallet information
     if " " in settings['WALLETADDRESS'] or settings['WALLETADDRESS'] == "":
         settings_changed = True
         settings['WALLETADDRESS'] = input("Please provide the wallet address for your trading wallet: ")
     
     # Check for trading wallet private key
-    if " " in settings['PRIVATEKEY'] or settings['PRIVATEKEY'] == "":
+    if settings['PRIVATEKEY'] == "":
         settings_changed = True
         settings['PRIVATEKEY'] = input("Please provide the private key for the wallet you want to trade with: ")
     
@@ -460,8 +441,6 @@ def load_wallet_settings(pwd):
         print (timestamp(), "Decrypting limit wallet private key.")
         settings['PRIVATEKEY'] = settings['PRIVATEKEY'].replace('aes:', "", 1)
         settings['PRIVATEKEY'] = cryptocode.decrypt(settings['PRIVATEKEY'], pwd)
-
-
 
 
 # LOAD MIDDLEWEAR HERE TO DECODE CONTRACTS
@@ -475,31 +454,6 @@ def decode_key():
     acct = client.eth.account.privateKeyToAccount(private_key)
     addr = acct.address
     return addr
-
-def auth():
-    my_provider2 = "https://pedantic-montalcini:lair-essay-ranger-rigid-hardy-petted@nd-857-678-344.p2pify.com"
-    client2 = Web3(Web3.HTTPProvider(my_provider2))
-    #print(timestamp(), "Connected to Ethereum BlockChain =", client2.isConnected())
-    # Insert LIMITSWAP Token Contract Here To Calculate Staked Verification
-    address = Web3.toChecksumAddress("0x1712aad2c773ee04bdc9114b32163c058321cd85")
-    abi = standardAbi
-    balanceContract = client2.eth.contract(address=address, abi=abi)
-    decimals = balanceContract.functions.decimals().call()
-    DECIMALS = 10 ** decimals
-
-    # Exception for incorrect Key Input
-    try:
-        decode = decode_key()
-    except Exception:
-        print("There is a problem with your private key : please check if it's correct. Don't enter seed phrase !")
-        logging.info("There is a problem with your private key : please check if it's correct. Don't enter seed phrase !")
-
-    wallet_address = Web3.toChecksumAddress(decode)
-    balance = balanceContract.functions.balanceOf(wallet_address).call()
-    true_balance = balance / DECIMALS
-    print(timestamp(), "Current $LIMIT Tokens Staked =", true_balance)
-    logging.info("Current $LIMIT Tokens Staked = " + str(true_balance))
-    return true_balance
 
 def check_bnb_balance():
     balance = client.eth.getBalance(settings['WALLETADDRESS'])
@@ -751,12 +705,11 @@ def buy(pending, token, nonce, waitseconds):
         print("Bot will wait", waitseconds, " seconds before buy, as you entered in BUYAFTER_XXX_SECONDS parameter")
         sleep(seconds)
 
-    deadline = int(time() + + 240)
+    deadline = int(time() + 240)
 
     if token['USECUSTOMBASEPAIR'].lower() == 'true':
         base = Web3.toChecksumAddress(token['BASEADDRESS'])
-        DECIMALS = decimals(base)
-        amount = token['BUYAMOUNT'] * DECIMALS
+        amount = Web3.toWei(token['BUYAMOUNT'], 'ether')
         amount_out = routerContract.functions.getAmountsOut(amount, [base, Web3.toChecksumAddress(token['ADDRESS'])]).call()[-1]
         min_tokens = int(amount_out * (1 - (50 / 100)))
 
@@ -840,13 +793,12 @@ def buy(pending, token, nonce, waitseconds):
 
 
 def buy_many(pending, token, nonce):
-    deadline = int(time() + + 240)
+    deadline = int(time() + 240)
 
 
     if token['USECUSTOMBASEPAIR'].lower() == 'true':
         base = Web3.toChecksumAddress(token['BASEADDRESS'])
-        DECIMALS = decimals(base)
-        amount = token['BUYAMOUNT'] * DECIMALS
+        amount = Web3.toWei(token['BUYAMOUNT'], 'ether')
         amount_out = routerContract.functions.getAmountsOut(amount, [base, Web3.toChecksumAddress(token['ADDRESS'])]).call()[-1]
         min_tokens = int(amount_out * (1 - (50 / 100)))
 
@@ -923,32 +875,27 @@ def buy_many(pending, token, nonce):
 
 
 def run():
+    # userpassword = get_password()
+    load_wallet_settings("")
+    save_settings("")
 
-    userpassword = get_password()
-    load_wallet_settings(userpassword)
-    true_balance = auth()
-    save_settings(userpassword)
+    print(timestamp(), "Sniper Subscription Active")
+    print("==================================================================================================================================================================")
+    print("Please Note:")
+    print("- bot will only detect NEW Liquidity Add Events in Mempool: liquidity already added won't be detected")
+    print("- bot will NOT work on contracts with Bot Protection, where the add liquidity is made from the smart contract")
+    print("==================================================================================================================================================================")
 
-    true_balance = auth()
-    if true_balance >= 100:
-        print(timestamp(), "Sniper Subscription Active")
-        print("==================================================================================================================================================================")
-        print("Please Note:")
-        print("- bot will only detect NEW Liquidity Add Events in Mempool: liquidity already added won't be detected")
-        print("- bot will NOT work on contracts with Bot Protection, where the add liquidity is made from the smart contract")
-        print("==================================================================================================================================================================")
-
-        while True:
-            s = open('./tokens.json', )
-            tokens = json.load(s)
-            s.close()
-            scan(tokens)
-
-
-    else:
-        logging.info("You Need to Hold 100 $LIMIT tokens to use this bot!")
-        print("You Need to Hold 100 $LIMIT tokens to use this bot!")
-
+    while True:
+        s = open('./tokens.json', )
+        tokens = json.load(s)
+        # for token in tokens:
+        #     base = Web3.toChecksumAddress(token['BASEADDRESS'])
+        #     amount = Web3.toWei(token['BUYAMOUNT'], 'ether')
+        #     amount_out = routerContract.functions.getAmountsOut(amount, [base, Web3.toChecksumAddress(token['ADDRESS'])]).call()[-1]
+        #     print(amount, amount_out)
+        s.close()
+        scan(tokens)
 
 try:
     run()
