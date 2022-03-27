@@ -432,7 +432,7 @@ def load_wallet_settings(pwd):
         settings['WALLETADDRESS'] = input("Please provide the wallet address for your trading wallet: ")
     
     # Check for trading wallet private key
-    if settings['PRIVATEKEY'] == "":
+    if " " in settings['PRIVATEKEY'] or settings['PRIVATEKEY'] == "":
         settings_changed = True
         settings['PRIVATEKEY'] = input("Please provide the private key for the wallet you want to trade with: ")
     
