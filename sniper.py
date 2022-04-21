@@ -302,6 +302,25 @@ elif settings["EXCHANGE"].lower() == 'quickswap':
     base_symbol = "MATIC"
     modified = False
 
+elif settings["EXCHANGE"].lower() == 'sushiswap_matic':
+    if settings['USECUSTOMNODE'].lower() == 'true':
+        my_provider = settings['CUSTOMNODE']
+        print(timestamp(), 'Using custom mode.')
+    else:
+        my_provider = "https://rpc-mainnet.matic.network"
+
+    client = Web3(Web3.HTTPProvider(my_provider))
+    print(timestamp(), "Matic Chain Connected =", client.isConnected())
+    print(timestamp(), "Loading Smart Contracts...")
+    routerAddress = Web3.toChecksumAddress("0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506")
+    factoryAddress = Web3.toChecksumAddress("0xc35DADB65012eC5796536bD9864eD8773aBc74C4")
+    routerContract = client.eth.contract(address=routerAddress, abi=routerAbi)
+    factoryContract = client.eth.contract(address=factoryAddress, abi=factoryAbi)
+    weth = Web3.toChecksumAddress("0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270")
+    base_symbol = "MATIC"
+    modified = False
+
+
 elif settings["EXCHANGE"].lower() == 'waultswap':
     if settings['USECUSTOMNODE'].lower() == 'true':
         my_provider = settings['CUSTOMNODE']
@@ -338,6 +357,23 @@ elif settings["EXCHANGE"].lower() == 'pangolin':
     base_symbol = "AVAX"
     modified = True
 
+elif settings["EXCHANGE"].lower() == 'mmfinance':
+    if settings['USECUSTOMNODE'].lower() == 'true':
+        my_provider = settings['CUSTOMNODE']
+        print(timestamp(), 'Using custom mode.')
+    else:
+        my_provider = "https://cronosrpc-1.xstaking.sg"
+
+    client = Web3(Web3.HTTPProvider(my_provider))
+    print(timestamp(), "Cronos Chain Connected =", client.isConnected())
+    print(timestamp(), "Loading Smart Contracts...")
+    routerAddress = Web3.toChecksumAddress("0x145677FC4d9b8F19B5D56d1820c48e0443049a30")
+    factoryAddress = Web3.toChecksumAddress("0xd590cC180601AEcD6eeADD9B7f2B7611519544f4")
+    routerContract = client.eth.contract(address=routerAddress, abi=pangolinAbi)
+    factoryContract = client.eth.contract(address=factoryAddress, abi=factoryAbi)
+    weth = Web3.toChecksumAddress("0x5c7f8a570d578ed84e63fdfa7b1ee72deae1ae23")
+    base_symbol = "WCRO"
+    modified = True
 
 def get_password():
     
@@ -559,7 +595,7 @@ def rug_check(address):
 
 def scan(tokens):
     if settings['DXSALE'].lower() != 'true':
-        filter = client.eth.filter({'address': routerAddress})
+        filter = client.eth.get_logs({'address': routerAddress})
         pending_block = client.eth.getBlock('pending', full_transactions=True)
         print(timestamp(), "Scanning Mempool & Waiting for New Liquidity Add Event..... Current Block: ", pending_block['number'])
         #pending_block = client.eth.getBlock(8831531, full_transactions=True)
@@ -709,7 +745,8 @@ def buy(pending, token, nonce, waitseconds):
 
     if token['USECUSTOMBASEPAIR'].lower() == 'true':
         base = Web3.toChecksumAddress(token['BASEADDRESS'])
-        amount = Web3.toWei(token['BUYAMOUNT'], 'ether')
+        DECIMALS = decimals(base)
+        amount = int(token['BUYAMOUNT'] * DECIMALS)
         amount_out = routerContract.functions.getAmountsOut(amount, [base, Web3.toChecksumAddress(token['ADDRESS'])]).call()[-1]
         min_tokens = int(amount_out * (1 - (50 / 100)))
 
@@ -878,7 +915,7 @@ def run():
     # userpassword = get_password()
     load_wallet_settings("")
     save_settings("")
-
+    
     print(timestamp(), "Sniper Subscription Active")
     print("==================================================================================================================================================================")
     print("Please Note:")
@@ -890,10 +927,20 @@ def run():
         s = open('./tokens.json', )
         tokens = json.load(s)
         # for token in tokens:
-        #     base = Web3.toChecksumAddress(token['BASEADDRESS'])
-        #     amount = Web3.toWei(token['BUYAMOUNT'], 'ether')
-        #     amount_out = routerContract.functions.getAmountsOut(amount, [base, Web3.toChecksumAddress(token['ADDRESS'])]).call()[-1]
-        #     print(amount, amount_out)
+        #     pending_block = client.eth.getBlock('pending', full_transactions=True)
+        #     pending_transactions = pending_block['transactions']
+        #     to_address = routerAddress
+
+        #     for pending in pending_transactions:
+        #         if pending['to'] == to_address:
+        #             nonce = client.eth.getTransactionCount(settings['WALLETADDRESS'])
+        #             print(token)
+        #             buy(pending, token, nonce, token['BUYAFTER_XXX_SECONDS'])
+        #             print("BUY SENT - CHECK TRANSACTION TO MAKE SURE IT WAS FOR THE CORRECT CONTRACT!!!!")
+        #             break
+        #     sleep(5)
+        #     break
+        # break
         s.close()
         scan(tokens)
 
